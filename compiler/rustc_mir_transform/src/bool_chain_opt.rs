@@ -1,22 +1,13 @@
 //! Folds chains of `&&` over pure boolean expressions into `BitAnd` BinOps,
 //! eliminating the phi nodes that LLVM cannot optimize away.
 
+use crate::MirPass;
 use rustc_middle::mir::*;
 use rustc_middle::ty::{self, TyCtxt};
-
-use crate::MirPass;
 
 pub(crate) struct BoolChainOpt;
 
 impl<'tcx> MirPass<'tcx> for BoolChainOpt {
-    fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
-        sess.mir_opt_level() >= 2
-    }
-
-    fn is_required(&self) -> bool {
-        false
-    }
-
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         let typing_env = ty::TypingEnv::post_analysis(tcx, body.source.def_id());
 
