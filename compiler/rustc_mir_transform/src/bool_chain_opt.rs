@@ -29,14 +29,14 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
     fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         let typing_env = ty::TypingEnv::post_analysis(tcx, body.source.def_id());
         let mut safe_candidates = Vec::new();
-        
+
         // PHASE 1: Collect COMPLETELY SAFE candidates
         for (bb, data) in body.basic_blocks.iter_enumerated() {
             let TerminatorKind::SwitchInt { discr, targets } = &data.terminator.kind else {
                 continue;
             };
 
-        // Only accept standard boolean branches (true/false)    
+        // Only accept standard boolean branches (true/false)
             if targets.all_targets().len() != 2 {
                 continue;
             }
@@ -47,7 +47,7 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
             };
 
             if !place.projection.is_empty() {
-                continue; // Reject projections (field access, index, etc.) 
+                continue; // Reject projections (field access, index, etc.)
             }
 
             let local = place.local;
@@ -86,15 +86,15 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
 
         let basic_blocks = body.basic_blocks.as_mut_preserves_cfg();
         let mut changed = false;
-        
+
         for (bb, local, source_info) in safe_candidates {
             let block = &mut basic_blocks[bb];
-            
-        // Safest possible case: constant value known at compile time    
+
+        // Safest possible case: constant value known at compile time
             if let Some(const_val) = try_get_const_bool(body, local) {
                 let targets = block.terminator.as_ref().unwrap().successors().collect::<Vec<_>>();
                 let target = if const_val { targets[0] } else { targets[1] };
-                
+
                 block.terminator = Some(Box::new(Terminator {
                     source_info,
                     kind: TerminatorKind::Goto { target },
@@ -103,7 +103,7 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
                 rustc_log::debug!("BoolChainOpt: folded constant bool in bb {:?}", bb);
             }
         }
-        
+
         if changed {
             rustc_log::debug!("BoolChainOpt: applied {} transformations", safe_candidates.len());
         }
@@ -126,7 +126,7 @@ fn is_provably_pure<'tcx>(
             }
         }
     }
-    false // If we do not find the definition, we reject it for safety reasons. 
+    false // If we do not find the definition, we reject it for safety reasons.
 }
 
 /// Checks if an Rvalue is a pure operation (no side effects, no panics)
@@ -139,9 +139,9 @@ fn is_rvalue_pure<'tcx>(
     match rvalue {
         Rvalue::Use(Operand::Constant(_)) => true,
         Rvalue::BinaryOp(op, _) => {
-            matches!(op, 
+            matches!(op,
                 BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor |
-                BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | 
+                BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le |
                 BinOp::Gt | BinOp::Ge
             )
         }
