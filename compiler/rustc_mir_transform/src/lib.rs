@@ -751,9 +751,7 @@ pub(crate) fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'
             // Detects pure `&&` chains after CFG simplification so that `SwitchInt`
             // forms are stable; runs at optimization level 2 to avoid changes in
             // unoptimized builds.
-            &pm::WithMinOptLevel::new(
-                2,
-            ),
+            &pm::WithMinOptLevel::new(2),
             // After `InstSimplify-after-simplifycfg` with `-Zub_checks=false`,
             &o1(simplify_branches::SimplifyConstCondition::AfterInstSimplify),
             &ref_prop::ReferencePropagation,
