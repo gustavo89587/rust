@@ -32,19 +32,19 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
             let local = place.local;
             let local_ty = body.local_decls[local].ty;
 
-            // 1. Deve ser booleano
+            // 1. Must be boolean
             if !local_ty.is_bool() {
                 continue;
             }
 
-            // 2. CONSERVADOR: Se tiver Drop, não tocamos. Preserva a ordem de destrutores.
+            // 2. CONSERVATIVE: If type has Drop, skip transformation to preserve destructor order.
             if local_ty.needs_drop(tcx, typing_env) {
                 continue;
             }
 
-            // V1: Scaffold de detecção.
-            // A lógica de pureza e a mutação do CFG serão implementadas em follow-up
-            // assim que os revisores validarem que esta detecção inicial é 100% segura.
+            // V1: Detection scaffold only.
+            // Purity analysis and CFG mutation will be implemented in a follow-up
+            // once reviewers validate that this initial detection is 100% safe.
         }
     }
 }
