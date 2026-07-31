@@ -37,6 +37,7 @@ use std::sync::LazyLock;
 
 use pass_manager::{self as pm, Lint, MirLint, MirPass, WithMinOptLevel};
 
+mod bool_chain_opt;
 mod check_pointers;
 mod cost_checker;
 mod cross_crate_inline;
@@ -734,6 +735,12 @@ pub(crate) fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'
             // ```
             // to unreachable to eliminate the call to help later passes.
             // This invalidates CFG caches also.
+            &instsimplify::InstSimplify::AfterSimplifyCfg,
+            // Detects pure `&&` chains after CFG simplification so that `SwitchInt`
+            // forms are stable; runs at optimization level 2 to avoid changes in
+            // unoptimized builds.
+            &pm::WithMinOptLevel::new(&bool_chain_opt::BoolChainOpt, 2),
+            // After `InstSimplify-after-simplifycfg` with `-Zub_checks=false`,
             &o1(simplify_branches::SimplifyConstCondition::AfterInstSimplify),
             &ref_prop::ReferencePropagation,
             &sroa::ScalarReplacementOfAggregates,
@@ -829,6 +836,7 @@ fn promoted_mir(tcx: TyCtxt<'_>, def: LocalDefId) -> &IndexVec<Promoted, Body<'_
     }
 
     if !tcx.is_synthetic_mir(def) {
+        mod bool_chain_opt;
         tcx.ensure_done().mir_borrowck(tcx.typeck_root_def_id_local(def));
     }
     let mut promoted = tcx.mir_promoted(def).1.steal();
