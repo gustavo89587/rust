@@ -34,9 +34,11 @@ use tracing::debug;
 mod pass_manager;
 
 use std::sync::LazyLock;
-use pass_manager::{self as pm, Lint, MirLint, MirPass, WithMinOptLevel};
 
 use pass_manager::{self as pm, Lint, MirLint, MirPass, WithMinOptLevel};
+/// BoolChainOpt: Detecta cadeias puras de `&&` e prepara transformação para `BitAnd`.
+/// Issue de rastreamento: #157945
+mod bool_chain_opt;
 
 mod bool_chain_opt;
 mod check_pointers;
@@ -740,7 +742,10 @@ pub(crate) fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'
             // Detects pure `&&` chains after CFG simplification so that `SwitchInt`
             // forms are stable; runs at optimization level 2 to avoid changes in
             // unoptimized builds.
-            &pm::WithMinOptLevel::new(&pm::WithMinOptLevel::new(&bool_chain_opt::BoolChainOpt, 2), 2),
+            &pm::WithMinOptLevel::new(
+                &pm::WithMinOptLevel::new(&bool_chain_opt::BoolChainOpt, 2),
+                2,
+            ),
             // After `InstSimplify-after-simplifycfg` with `-Zub_checks=false`,
             &o1(simplify_branches::SimplifyConstCondition::AfterInstSimplify),
             &ref_prop::ReferencePropagation,
@@ -837,7 +842,6 @@ fn promoted_mir(tcx: TyCtxt<'_>, def: LocalDefId) -> &IndexVec<Promoted, Body<'_
     }
 
     if !tcx.is_synthetic_mir(def) {
-        mod bool_chain_opt;
         tcx.ensure_done().mir_borrowck(tcx.typeck_root_def_id_local(def));
     }
     let mut promoted = tcx.mir_promoted(def).1.steal();

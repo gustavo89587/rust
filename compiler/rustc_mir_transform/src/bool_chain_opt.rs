@@ -10,9 +10,10 @@
 //! If ANY invariant cannot be proven, the transformation is SKIPPED.
 //! It is better to miss an optimization opportunity than to introduce Undefined Behavior.
 
-use crate::MirPass;
 use rustc_middle::mir::*;
 use rustc_middle::ty::{self, TyCtxt};
+
+use crate::MirPass;
 
 pub(crate) struct BoolChainOpt;
 
@@ -36,7 +37,7 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
                 continue;
             };
 
-        // Only accept standard boolean branches (true/false)
+            // Only accept standard boolean branches (true/false)
             if targets.all_targets().len() != 2 {
                 continue;
             }
@@ -90,7 +91,7 @@ impl<'tcx> MirPass<'tcx> for BoolChainOpt {
         for (bb, local, source_info) in safe_candidates {
             let block = &mut basic_blocks[bb];
 
-        // Safest possible case: constant value known at compile time
+            // Safest possible case: constant value known at compile time
             if let Some(const_val) = try_get_const_bool(body, local) {
                 let targets = block.terminator.as_ref().unwrap().successors().collect::<Vec<_>>();
                 let target = if const_val { targets[0] } else { targets[1] };
@@ -139,10 +140,17 @@ fn is_rvalue_pure<'tcx>(
     match rvalue {
         Rvalue::Use(Operand::Constant(_)) => true,
         Rvalue::BinaryOp(op, _) => {
-            matches!(op,
-                BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor |
-                BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le |
-                BinOp::Gt | BinOp::Ge
+            matches!(
+                op,
+                BinOp::BitAnd
+                    | BinOp::BitOr
+                    | BinOp::BitXor
+                    | BinOp::Eq
+                    | BinOp::Ne
+                    | BinOp::Lt
+                    | BinOp::Le
+                    | BinOp::Gt
+                    | BinOp::Ge
             )
         }
         Rvalue::UnaryOp(op, _) => matches!(op, UnOp::Not),
@@ -163,7 +171,10 @@ fn block_is_side_effect_free(data: &BasicBlockData<'_>) -> bool {
             StatementKind::Nop => continue,
             StatementKind::FakeRead(_, _) => continue,
             _ => {
-                rustc_log::debug!("BoolChainOpt: rejecting statement {:?} - has side effects", stmt.kind);
+                rustc_log::debug!(
+                    "BoolChainOpt: rejecting statement {:?} - has side effects",
+                    stmt.kind
+                );
                 return false;
             }
         }
@@ -178,7 +189,9 @@ fn try_get_const_bool<'tcx>(body: &Body<'tcx>, local: Local) -> Option<bool> {
             if let StatementKind::Assign(box (place, rvalue)) = &stmt.kind {
                 if place.as_local() == Some(local) {
                     if let Rvalue::Use(Operand::Constant(box constant)) = rvalue {
-                        if let ty::ConstKind::Value(ty::ValTree::Leaf(scalar)) = constant.const_.kind() {
+                        if let ty::ConstKind::Value(ty::ValTree::Leaf(scalar)) =
+                            constant.const_.kind()
+                        {
                             return Some(scalar.to_bool().unwrap_or(false));
                         }
                     }
